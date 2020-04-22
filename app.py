@@ -32,7 +32,13 @@ def nan_NA(v):
 app = dash.Dash(__name__)
 server = app.server
 
-mols = [m for m in Chem.SDMolSupplier('extract.sdf', removeHs=False)]
+mols_extract = [m for m in Chem.SDMolSupplier('extract.sdf', removeHs=False)]
+df_extract = pd.DataFrame([m.GetPropsAsDict() for m in tqdm(mols_extract)])
+df_extract=df_extract.assign(mol=mols_extract)
+imgs_extract = [PrintAsBase64PNGString(m) for m in tqdm(df_extract.mol.values)]
+df_extract=df_extract.assign(imgs=imgs_extract)
+
+mols = [m for m in Chem.SDMolSupplier('chembl_full.sdf', removeHs=False)]
 df = pd.DataFrame([m.GetPropsAsDict() for m in tqdm(mols)])
 df=df.assign(mol=mols)
 df.CB1_pKi = df.CB1_pKi.apply(nan_NA)
@@ -123,7 +129,7 @@ def update_ranges(_, pathname):
     elif pathname == '/CB2':
         r = 'CB2'
     elif pathname == '/extract':
-        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        pkis = df_extract['CB2_pKi'].values-df_extract['CB1_pKi'].values
         return pkis.min()
     else:
         return 0
@@ -143,7 +149,7 @@ def update_ranges(_, pathname):
     elif pathname == '/CB2':
         r = 'CB2'
     elif pathname == '/extract':
-        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        pkis = df_extract['CB2_pKi'].values-df_extract['CB1_pKi'].values
         return pkis.max()
     else:
         return 10
@@ -163,7 +169,7 @@ def update_ranges(_, pathname):
     elif pathname == '/CB2':
         r = 'CB2'
     elif pathname == '/extract':
-        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        pkis = df_extract['CB2_pKi'].values-df_extract['CB1_pKi'].values
         return [pkis.min(), pkis.max()]
     else:
         return [0,10]
@@ -189,19 +195,21 @@ def update_table(n_clicks, pki_range, pathname):
     elif pathname == '/CB2':
         r = 'CB2'
     elif pathname == '/extract':
-        pkis = df['CB2_pKi']-df['CB1_pKi']
+        pkis = df_extract['CB2_pKi']-df_extract['CB1_pKi']
         pki_min, pki_max = pki_range
         
         mask = (pkis>=pki_min) & (pkis<=pki_max)
         
-        masked_df = df[mask]
+        masked_df = df_extract_extract[mask]
         
         imgs = [html.Img(src='data:image/png;base64,%s'%img) for img in masked_df.imgs]
-        labels = [html.P(['Predicted pKi (CB1) = %.2f'%cb1,
+        labels = [html.P(['Compound %d'%cid,
+                          html.Br(),
+                          'Predicted pKi (CB1) = %.2f'%cb1,
                           html.Br(),
                           'Predicted pKi (CB2) = %.2f'%cb2],
                          style={'text-align': 'center'}) 
-                        for cb1, cb2 in zip(masked_df.CB1_pKi.values, masked_df.CB2_pKi.values)]
+                        for cid, (cb1, cb2) in enumerate(zip(masked_df.CB1_pKi.values, masked_df.CB2_pKi.values))]
         tds = [html.Td([html.Tr(i), html.Tr(l)]) for i,l in zip(imgs, labels)]
         inds = np.array_split(np.arange(len(tds)), int(np.ceil(len(tds)/4)))
         trs = [html.Tr([tds[i] for i in ind]) for ind in inds]    
