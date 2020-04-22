@@ -32,7 +32,7 @@ def nan_NA(v):
 app = dash.Dash(__name__)
 server = app.server
 
-mols = [m for m in Chem.SDMolSupplier('chembl_full.sdf', removeHs=False)]
+mols = [m for m in Chem.SDMolSupplier('extract.sdf', removeHs=False)]
 df = pd.DataFrame([m.GetPropsAsDict() for m in tqdm(mols)])
 df=df.assign(mol=mols)
 df.CB1_pKi = df.CB1_pKi.apply(nan_NA)
@@ -53,7 +53,7 @@ slider = dcc.RangeSlider(id='slider', min=0, max=10, step=0.1, value=[0,10],
 
 app.layout = html.Div([dcc.Location(id='url', refresh=False),
         html.Table([
-                html.Tr(html.Td(html.B('Select pKi range:'))),
+                html.Tr(html.Td(html.B('Select pKi range:', id='label'))),
                 html.Tr(html.Td(slider, style={'width':'25%',
                                                'padding-right':'10em',
                                                'padding-left':'10em'})),
@@ -80,6 +80,19 @@ app.layout = html.Div([dcc.Location(id='url', refresh=False),
                                       'border-top-color':'grey'}))])
 
 @app.callback(
+dash.dependencies.Output('label', 'children'),
+[dash.dependencies.Input('url', 'pathname')],
+[dash.dependencies.State('url', 'pathname')])
+def update_label(_, pathname):
+    
+    if (pathname == '/CB1') or (pathname == '/CB2'):
+        return 'Select pKi range:'
+    elif pathname == '/extract':
+        return 'Select CB2-CB1 dpKi range:'
+    else:
+        return ''
+    
+@app.callback(
 dash.dependencies.Output('slider', 'marks'),
 [dash.dependencies.Input('url', 'pathname')],
 [dash.dependencies.State('url', 'pathname')])
@@ -89,6 +102,9 @@ def update_ranges(_, pathname):
         r = 'CB1'
     elif pathname == '/CB2':
         r = 'CB2'
+    elif pathname == '/extract':
+        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        return {('%.2f'%n):{'label':'%.2f'%n} for n in np.linspace(pkis.min(), pkis.max(), 10)}
     else:
         return {('%.2f'%n):{'label':'%.2f'%n} for n in np.linspace(0,10, 10)}
         
@@ -106,6 +122,9 @@ def update_ranges(_, pathname):
         r = 'CB1'
     elif pathname == '/CB2':
         r = 'CB2'
+    elif pathname == '/extract':
+        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        return pkis.min()
     else:
         return 0
     
@@ -123,6 +142,9 @@ def update_ranges(_, pathname):
         r = 'CB1'
     elif pathname == '/CB2':
         r = 'CB2'
+    elif pathname == '/extract':
+        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        return pkis.max()
     else:
         return 10
         
@@ -140,6 +162,9 @@ def update_ranges(_, pathname):
         r = 'CB1'
     elif pathname == '/CB2':
         r = 'CB2'
+    elif pathname == '/extract':
+        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        return [pkis.min(), pkis.max()]
     else:
         return [0,10]
         
@@ -147,6 +172,7 @@ def update_ranges(_, pathname):
     
     return [pkis.min(), pkis.max()]
     
+
     
 @app.callback(
 dash.dependencies.Output('results', 'children'),
@@ -162,6 +188,22 @@ def update_table(n_clicks, pki_range, pathname):
         r = 'CB1'
     elif pathname == '/CB2':
         r = 'CB2'
+    elif pathname == '/extract':
+        pkis = df['CB2_pKi']-df['CB1_pKi']
+        pki_min, pki_max = pki_range
+        
+        mask = (pkis>=pki_min) & (pkis<=pki_max)
+        
+        masked_df = df[mask]
+        
+        imgs = [html.Img(src='data:image/png;base64,%s'%img) for img in masked_df.imgs]
+        labels = [html.P('Predicted: pKi (CB1) = %.2f  pKi (CB2) = %.2f'%(cb1, cb2),
+                         style={'text-align': 'center'}) 
+                        for cb1, cb2 in zip(masked_df.CB1_pKi.values, masked_df.CB2_pKi.values)]
+        tds = [html.Td([html.Tr(i), html.Tr(l)]) for i,l in zip(imgs, labels)]
+        inds = np.array_split(np.arange(len(tds)), int(np.ceil(len(tds)/4)))
+        trs = [html.Tr([tds[i] for i in ind]) for ind in inds]    
+        return trs
     else:
         return []
         
