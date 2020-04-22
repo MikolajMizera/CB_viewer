@@ -109,7 +109,7 @@ def update_ranges(_, pathname):
     elif pathname == '/CB2':
         r = 'CB2'
     elif pathname == '/extract':
-        pkis = df['CB2_pKi'].values-df['CB1_pKi'].values
+        pkis = df_extract['CB2_pKi'].values-df_extract['CB1_pKi'].values
         return {('%.2f'%n):{'label':'%.2f'%n} for n in np.linspace(pkis.min(), pkis.max(), 10)}
     else:
         return {('%.2f'%n):{'label':'%.2f'%n} for n in np.linspace(0,10, 10)}
@@ -200,7 +200,7 @@ def update_table(n_clicks, pki_range, pathname):
         
         mask = (pkis>=pki_min) & (pkis<=pki_max)
         
-        masked_df = df_extract_extract[mask]
+        masked_df = df_extract[mask]
         
         imgs = [html.Img(src='data:image/png;base64,%s'%img) for img in masked_df.imgs]
         labels = [html.P(['Compound %d'%cid,
