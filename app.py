@@ -199,7 +199,7 @@ def update_table(n_clicks, pki_range, pathname):
         imgs = [html.Img(src='data:image/png;base64,%s'%img) for img in masked_df.imgs]
         labels = [html.P(['Predicted pKi (CB1) = %.2f'%cb1,
                           html.Br(),
-                          'Predicted pKi (CB2) = %.2f'%cb2]
+                          'Predicted pKi (CB2) = %.2f'%cb2],
                          style={'text-align': 'center'}) 
                         for cb1, cb2 in zip(masked_df.CB1_pKi.values, masked_df.CB2_pKi.values)]
         tds = [html.Td([html.Tr(i), html.Tr(l)]) for i,l in zip(imgs, labels)]
