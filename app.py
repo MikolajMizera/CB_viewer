@@ -201,15 +201,20 @@ def update_table(n_clicks, pki_range, pathname):
         mask = (pkis>=pki_min) & (pkis<=pki_max)
         
         masked_df = df_extract[mask]
+        masked_df = masked_df.iloc[np.argsort(-(masked_df.CB2_pKi-masked_df.CB1_pKi).values)]
         
         imgs = [html.Img(src='data:image/png;base64,%s'%img) for img in masked_df.imgs]
-        labels = [html.P(['Compound %d'%cid,
+        labels = [html.P([html.A('%s'%cid, 
+                             href='http://bidd2.nus.edu.sg/NPASS/compound.php?compoundID=%s'%cid,
+                             target='blank'),
                           html.Br(),
                           'Predicted pKi (CB1) = %.2f'%cb1,
                           html.Br(),
                           'Predicted pKi (CB2) = %.2f'%cb2],
                          style={'text-align': 'center'}) 
-                        for cid, (cb1, cb2) in enumerate(zip(masked_df.CB1_pKi.values, masked_df.CB2_pKi.values))]
+                        for (cid, cb1, cb2) in zip(masked_df.Compound_ID.values,
+                                                    masked_df.CB1_pKi.values, 
+                                                    masked_df.CB2_pKi.values)]
         tds = [html.Td([html.Tr(i), html.Tr(l)]) for i,l in zip(imgs, labels)]
         inds = np.array_split(np.arange(len(tds)), int(np.ceil(len(tds)/4)))
         trs = [html.Tr([tds[i] for i in ind]) for ind in inds]    
